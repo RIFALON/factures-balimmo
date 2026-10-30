@@ -88,6 +88,13 @@ dialog .card{margin:0;border:0;box-shadow:none}
 .top .who{font-size:13px;opacity:.8}
 .file-link{white-space:nowrap}
 td.mono{white-space:nowrap}
+.stat.neg b{color:var(--ko)} .stat.pos b{color:var(--ok)}
+tr.clic{cursor:pointer} tr.clic:hover td{background:#f7faf9}
+tr.off td{color:#9aa19e} tr.off td .badge{opacity:.7}
+tfoot td{font-weight:700;background:#faf9f6;border-top:1px solid var(--line)}
+td.neg{color:var(--ko)}
+th.num{text-align:right}
+#b-stats .stat b{font-size:20px}
 @media (max-width:640px){ .hide-sm{display:none} .card{padding:16px}
   #ent-list .tablewrap{border:0;background:none}
   #ent-list table,#ent-list tbody,#ent-list tr,#ent-list td{display:block}
@@ -107,6 +114,7 @@ td.mono{white-space:nowrap}
     <nav class="nav" id="nav" hidden>
       <button data-tab="factures" class="on">Factures</button>
       <button data-tab="entreprises">Entreprises</button>
+      <button data-tab="budgets">Budgets</button>
       <button data-tab="chantiers">Chantiers</button>
       <button data-tab="params">Paramètres</button>
     </nav>
@@ -226,6 +234,26 @@ td.mono{white-space:nowrap}
     <div class="tablewrap" id="tbl-e"></div>
   </section>
 
+  <section id="tab-budgets" hidden>
+    <div class="card" style="padding:14px">
+      <h2>Suivi des budgets par chantier</h2>
+      <div class="tablewrap" id="tbl-bud"></div>
+      <p class="muted" style="margin:10px 0 0;font-size:13px">Payé = factures marquées payées. En attente de paiement = factures non payées et non refusées (à vérifier ou validées). Restant = budget − payé. Prévisionnel = budget − payé − en attente. Les factures refusées ne sont pas comptées.</p>
+    </div>
+    <div class="card" id="bud-detail" hidden>
+      <div class="row" style="align-items:flex-end">
+        <div style="flex:2 1 220px"><label for="b-ch">Chantier</label><select id="b-ch"></select></div>
+        <div><label for="b-mt">Budget</label><input id="b-mt" inputmode="decimal"></div>
+        <div style="flex:0 0 110px"><label for="b-dev">Devise</label><select id="b-dev"><option>IDR</option><option>EUR</option><option>USD</option></select></div>
+        <button class="btn" id="b-save" type="button">Enregistrer le budget</button>
+        <button class="btn ghost" id="b-csv" type="button">Export Excel (CSV)</button>
+      </div>
+      <div class="stats" id="b-stats" style="margin-top:16px"></div>
+      <p class="muted" id="b-warn" style="font-size:13px;margin:0 0 10px"></p>
+      <div class="tablewrap" id="b-list"></div>
+    </div>
+  </section>
+
   <section id="tab-chantiers" hidden>
     <div class="card">
       <h2>Ajouter un chantier</h2>
@@ -268,9 +296,9 @@ td.mono{white-space:nowrap}
       <button type="button" class="btn ghost sm" id="tr-fr-en">Traduire FR → EN</button>
       <button type="button" class="btn ghost sm" id="tr-en-fr">Traduire EN → FR</button>
     </div>
-    <label for="n-en">Note in English</label>
-    <textarea id="n-en"></textarea>
-    <p class="muted" style="font-size:13px;margin:8px 0 0">Les deux versions partent dans le même mail. Relisez la traduction automatique avant l'envoi.</p>
+    <label for="n-en">Note in English (laisser vide : traduction automatique à l'envoi)</label>
+    <textarea id="n-en" placeholder="Rempli automatiquement si vous le laissez vide"></textarea>
+    <p class="muted" style="font-size:13px;margin:8px 0 0">Le mail part à l'entreprise avec la note en français et en anglais, et la facture refusée en pièce jointe.</p>
     <div class="dlg-foot">
       <button type="button" class="btn ghost" id="rej-cancel">Annuler</button>
       <button type="button" class="btn ko" id="rej-send">Refuser et envoyer la note</button>
