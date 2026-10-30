@@ -32,6 +32,19 @@
     const dec = f.devise === 'IDR' ? 0 : 2;
     return Number(f.montant).toLocaleString(uiLang() === 'en' ? 'en-US' : 'fr-FR', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + ' ' + f.devise;
   }
+  function amounts(f) {
+    const ttc = f.montant_ttc != null ? f.montant_ttc : f.montant;
+    const a = money({ montant: f.montant_ht, devise: f.devise }), b = money({ montant: ttc, devise: f.devise });
+    if (!a) return esc(b);
+    return esc(b) + '<span class="sub-amt">' + (uiLang() === 'en' ? 'Excl. tax ' : 'HT ') + esc(a) + '</span>';
+  }
+  function parseAmount(v) {
+    const raw = String(v || '').replace(/[\s ]/g, '');
+    if (!raw) return null;
+    const norm = /,\d{1,2}$/.test(raw) ? raw.replace(/\./g, '').replace(',', '.') : raw.replace(/,/g, '');
+    const n = Number(norm);
+    return isFinite(n) && n >= 0 ? n : NaN;
+  }
   function uuid() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
@@ -145,12 +158,13 @@
       pwdMismatch: 'Les deux mots de passe sont différents', pwdShort: '8 caractères minimum', pwdSaved: 'Mot de passe enregistré',
       linkExpired: 'Ce lien a expiré ou a déjà servi. Demandez un nouveau lien avec « Mot de passe oublié ».',
       noAccess: 'Ce compte n\'a pas (ou plus) accès au portail.', sessionExpired: 'Session expirée, reconnectez-vous',
-      hello: 'Connecté :', uploadTitle: 'Déposer une facture', site: 'Chantier', number: 'N° de facture', designation: 'Désignation des travaux',
-      amount: 'Montant (optionnel)', currency: 'Devise', file: 'Facture (PDF, JPG ou PNG, 15 Mo maximum)', dropEmpty: '<b>Cliquez</b> ou glissez le fichier ici',
+      hello: 'Connecté :', uploadTitle: 'Déposer une facture', site: 'Chantier', number: 'N° de facture', designation: 'Objet de la facture',
+      amount: 'Montant', currency: 'Devise', company: 'Nom de l\'entreprise', amountHT: 'Montant HT (sans taxe)', amountTTC: 'Montant TTC (taxes comprises)',
+      needCompany: 'Indiquez le nom de l\'entreprise.', needHT: 'Indiquez le montant HT.', needTTC: 'Indiquez le montant TTC.', ttcLow: 'Le montant TTC doit être supérieur ou égal au HT.', file: 'Facture (PDF, JPG ou PNG, 15 Mo maximum)', dropEmpty: '<b>Cliquez</b> ou glissez le fichier ici',
       send: 'Envoyer la facture', sending: 'Envoi en cours…', sent: 'Facture envoyée. Merci.', myInvoices: 'Mes factures', none: 'Aucune facture déposée pour le moment.',
-      noSite: 'Aucun chantier ouvert pour le moment', needFile: 'Ajoutez le fichier de la facture.', needDesig: 'Indiquez la désignation.', needSite: 'Choisissez le chantier.',
+      noSite: 'Aucun chantier ne vous est attribué pour le moment', needFile: 'Ajoutez le fichier de la facture.', needDesig: 'Indiquez la désignation.', needSite: 'Choisissez le chantier.',
       badAmount: 'Montant invalide', tooBig: 'Fichier trop lourd (15 Mo maximum).', badType: 'Format accepté : PDF, JPG, PNG.',
-      th: ['Date', 'Réf.', 'Chantier', 'Désignation', 'Montant', 'Statut', 'Paiement'],
+      th: ['Date', 'Réf.', 'Chantier', 'Objet', 'TTC (HT)', 'Statut', 'Paiement'],
       'En attente': 'En attente', 'Validée': 'Validée', 'Refusée': 'Refusée', 'Payée': 'Payée', 'Non payée': 'Non payée',
       notConfigured: 'Application pas encore configurée (config.js).',
     },
@@ -162,12 +176,13 @@
       pwdMismatch: 'The two passwords do not match', pwdShort: '8 characters minimum', pwdSaved: 'Password saved',
       linkExpired: 'This link has expired or was already used. Request a new one with “Forgot your password?”.',
       noAccess: 'This account does not have access to the portal.', sessionExpired: 'Session expired, please log in again',
-      hello: 'Logged in:', uploadTitle: 'Upload an invoice', site: 'Construction site', number: 'Invoice number', designation: 'Description of work',
-      amount: 'Amount (optional)', currency: 'Currency', file: 'Invoice (PDF, JPG or PNG, 15 MB max)', dropEmpty: '<b>Click</b> or drop the file here',
+      hello: 'Logged in:', uploadTitle: 'Upload an invoice', site: 'Construction site', number: 'Invoice number', designation: 'Invoice subject',
+      amount: 'Amount', currency: 'Currency', company: 'Company name', amountHT: 'Amount excl. tax', amountTTC: 'Amount incl. tax',
+      needCompany: 'Please enter the company name.', needHT: 'Please enter the amount excluding tax.', needTTC: 'Please enter the amount including tax.', ttcLow: 'The amount incl. tax must be greater than or equal to excl. tax.', file: 'Invoice (PDF, JPG or PNG, 15 MB max)', dropEmpty: '<b>Click</b> or drop the file here',
       send: 'Send invoice', sending: 'Uploading…', sent: 'Invoice sent. Thank you.', myInvoices: 'My invoices', none: 'No invoice uploaded yet.',
-      noSite: 'No open construction site at the moment', needFile: 'Please add the invoice file.', needDesig: 'Please describe the work.', needSite: 'Please choose the site.',
+      noSite: 'No construction site assigned to you yet', needFile: 'Please add the invoice file.', needDesig: 'Please describe the work.', needSite: 'Please choose the site.',
       badAmount: 'Invalid amount', tooBig: 'File too large (15 MB max).', badType: 'Accepted formats: PDF, JPG, PNG.',
-      th: ['Date', 'Ref.', 'Site', 'Description', 'Amount', 'Status', 'Payment'],
+      th: ['Date', 'Ref.', 'Site', 'Subject', 'Incl. tax (excl.)', 'Status', 'Payment'],
       'En attente': 'Pending', 'Validée': 'Approved', 'Refusée': 'Rejected', 'Payée': 'Paid', 'Non payée': 'Unpaid',
       notConfigured: 'Application not configured yet (config.js).',
     },
@@ -191,20 +206,26 @@
     $('#btn-refresh').hidden = id !== 'v-admin';
     $('#nav').hidden = id !== 'v-admin';
     $('#langsw').hidden = id === 'v-admin';
-    $('#sub').textContent = id === 'v-admin' ? 'Administration factures' : (lang === 'en' ? 'Invoices' : 'Factures');
+    $('#sub').textContent = id === 'v-admin' ? (ADMROLE === 'super' ? 'Super administrateur' : 'Valideur') : (lang === 'en' ? 'Invoices' : 'Factures');
     $('#who').textContent = inApp && SB.session && SB.session.user ? SB.session.user.email : '';
     $('#btn-logout').textContent = id === 'v-admin' ? 'Déconnexion' : t('logout');
   }
 
-  let ROLE = null, ENT = null;
+  let ROLE = null, ENT = null, ADMROLE = null;
+  const isSuper = () => ADMROLE === 'super';
+  function applyRole() {
+    $$('[data-super]').forEach((el) => { el.hidden = !isSuper(); });
+    $('#b-mt').disabled = $('#b-dev').disabled = !isSuper();
+    $('#b-save').hidden = !isSuper();
+  }
 
   async function route() {
     show('v-loading');
     if (!SB.session) { show('v-login'); return; }
     try {
       if (!SB.session.user) await SB.user();
-      const adm = await SB.rest('admins?select=user_id');
-      if (adm && adm.length) { ROLE = 'admin'; show('v-admin'); await loadAdmin(); return; }
+      const adm = await SB.rest('admins?select=user_id,role&user_id=eq.' + SB.session.user.id);
+      if (adm && adm.length) { ROLE = 'admin'; ADMROLE = adm[0].role; applyRole(); show('v-admin'); await loadAdmin(); return; }
       const ent = await SB.rest('entreprises?select=id,nom,langue&active=eq.true');
       if (ent && ent.length) {
         ROLE = 'entreprise'; ENT = ent[0];
@@ -234,7 +255,7 @@
       try { await SB.fn('forgot', { email: $('#fg-email').value.trim() }, true); $('#fg-ok').textContent = t('forgotSent'); } catch (ex) { $('#fg-err').textContent = ex.message; }
     });
   });
-  $('#btn-logout').onclick = async () => { await SB.signOut(); ROLE = null; ENT = null; ADM = null; show('v-login'); };
+  $('#btn-logout').onclick = async () => { await SB.signOut(); ROLE = null; ENT = null; ADM = null; ADMROLE = null; show('v-login'); };
 
   /* ---------- Choix du mot de passe (lien d'invitation / récupération) ---------- */
   $('#f-setpw').addEventListener('submit', (e) => {
@@ -252,11 +273,13 @@
   let EDATA = { chantiers: [], factures: [] }, FILE = null;
 
   async function loadEnt() {
-    const [ch, f] = await Promise.all([
+    const [ch, ec, f] = await Promise.all([
       SB.rest('chantiers?select=id,nom&actif=eq.true&order=nom'),
-      SB.rest('registre?select=id,ref,created_at,chantier,designation,numero,montant,devise,validation,paiement,note&order=created_at.desc'),
+      SB.rest('entreprise_chantiers?select=chantier_id'),
+      SB.rest('registre?select=id,ref,created_at,chantier,designation,numero,montant,montant_ht,montant_ttc,devise,validation,paiement,note&order=created_at.desc'),
     ]);
-    EDATA = { chantiers: ch || [], factures: f || [] };
+    const ok = new Set((ec || []).map((x) => x.chantier_id));
+    EDATA = { chantiers: (ch || []).filter((c) => ok.has(c.id)), factures: f || [] };
     renderEnt();
   }
   function badge(v) {
@@ -266,6 +289,7 @@
   function renderEnt() {
     if (!ENT) return;
     $('#ent-name').textContent = ENT.nom;
+    if (!$('#u-ent').value) $('#u-ent').value = ENT.nom;
     const sel = $('#u-ch'), cur = sel.value;
     sel.innerHTML = EDATA.chantiers.length
       ? '<option value="">—</option>' + EDATA.chantiers.map((c) => '<option value="' + esc(c.id) + '">' + esc(c.nom) + '</option>').join('')
@@ -278,7 +302,7 @@
         EDATA.factures.map((f) => '<tr><td class="d">' + esc(fmtDate(f.created_at)) + '</td><td class="hide-sm mono">' + esc(f.ref) + '</td><td>' + esc(f.chantier) + '</td><td>' +
           esc(f.designation) + (f.numero ? '<div class="muted">N° ' + esc(f.numero) + '</div>' : '') +
           (f.validation === 'Refusée' && f.note ? '<div class="note">' + esc(f.note) + '</div>' : '') +
-          '</td><td class="num hide-sm">' + esc(money(f)) + '</td><td class="b">' + badge(f.validation) + '</td><td class="b">' + badge(f.paiement) + '</td></tr>').join('') +
+          '</td><td class="num hide-sm">' + amounts(f) + '</td><td class="b">' + badge(f.validation) + '</td><td class="b">' + badge(f.paiement) + '</td></tr>').join('') +
         '</tbody></table></div>'
       : '<div class="empty">' + esc(t('none')) + '</div>';
   }
@@ -304,17 +328,16 @@
   $('#f-up').addEventListener('submit', (e) => {
     e.preventDefault();
     const err = $('#up-err'); err.textContent = '';
-    const chantier_id = $('#u-ch').value, designation = $('#u-des').value.trim();
+    const chantier_id = $('#u-ch').value, designation = $('#u-des').value.trim(), entNom = $('#u-ent').value.trim();
     if (!chantier_id) { err.textContent = t('needSite'); return; }
+    if (!entNom) { err.textContent = t('needCompany'); return; }
     if (!designation) { err.textContent = t('needDesig'); return; }
+    const ht = parseAmount($('#u-ht').value), ttc = parseAmount($('#u-ttc').value);
+    if (ht === null) { err.textContent = t('needHT'); return; }
+    if (ttc === null) { err.textContent = t('needTTC'); return; }
+    if (isNaN(ht) || isNaN(ttc)) { err.textContent = t('badAmount'); return; }
+    if (ttc < ht) { err.textContent = t('ttcLow'); return; }
     if (!FILE) { err.textContent = t('needFile'); return; }
-    let montant = null;
-    const raw = $('#u-mt').value.replace(/[\s ]/g, '');
-    if (raw) {
-      const norm = /,\d{1,2}$/.test(raw) ? raw.replace(/\./g, '').replace(',', '.') : raw.replace(/,/g, '');
-      montant = Number(norm);
-      if (!isFinite(montant) || montant < 0) { err.textContent = t('badAmount'); return; }
-    }
     const btn = $('#btn-up'); btn.disabled = true; btn.textContent = t('sending');
     (async () => {
       const ext = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png' }[FILE.type];
@@ -324,10 +347,10 @@
         await SB.upload(path, FILE); uploaded = true;
         const rows = await SB.rest('factures', {
           method: 'POST', prefer: 'return=representation',
-          body: { chantier_id, designation, numero: $('#u-num').value.trim() || null, montant, devise: $('#u-dev').value, fichier_path: path, fichier_nom: FILE.name.slice(0, 200) },
+          body: { chantier_id, designation, entreprise_nom: entNom.slice(0, 200), numero: $('#u-num').value.trim() || null, montant: ttc, montant_ht: ht, montant_ttc: ttc, devise: $('#u-dev').value, fichier_path: path, fichier_nom: FILE.name.slice(0, 200) },
         });
         try { await SB.fn('notify_upload', { facture_id: rows[0].id }); } catch (ex) { console.warn('Alerte non envoyée', ex); }
-        ['#u-des', '#u-num', '#u-mt'].forEach((s) => { $(s).value = ''; });
+        ['#u-des', '#u-num', '#u-ht', '#u-ttc'].forEach((s) => { $(s).value = ''; });
         FILE = null; $('#u-file').value = ''; renderDrop();
         await loadEnt(); toast(t('sent'));
       } catch (ex) {
@@ -341,18 +364,20 @@
   let ADM = null, REJ = null;
 
   async function loadAdmin() {
-    const [f, e, c, s, b] = await Promise.all([
+    const [f, e, c, s, b, adms, ec] = await Promise.all([
       SB.rest('registre?select=*&order=created_at.desc'),
       SB.rest('entreprises?select=*&order=nom'),
       SB.rest('chantiers?select=*&order=nom'),
       SB.rest('settings?select=*&id=eq.1'),
       SB.rest('chantier_budgets?select=*').catch(() => []),
+      SB.rest('admins?select=user_id,role,email,nom,created_at&order=created_at').catch(() => []),
+      SB.rest('entreprise_chantiers?select=entreprise_id,chantier_id').catch(() => []),
     ]);
-    ADM = { factures: f || [], entreprises: e || [], chantiers: c || [], settings: (s && s[0]) || {}, budgets: b || [] };
+    ADM = { factures: f || [], entreprises: e || [], chantiers: c || [], settings: (s && s[0]) || {}, budgets: b || [], admins: adms || [], acces: ec || [] };
     renderAdmin();
-    if (!ADM.settings.validation_email) toast('Pensez à renseigner l\'adresse de validation dans Paramètres');
+    if (isSuper() && !ADM.settings.validation_email) toast('Pensez à renseigner l\'adresse de validation dans Paramètres');
   }
-  function renderAdmin() { fillFilters(); renderFactures(); renderEntreprises(); renderChantiers(); renderParams(); renderBudgets(); }
+  function renderAdmin() { fillFilters(); renderFactures(); renderEntreprises(); renderChantiers(); renderParams(); renderBudgets(); renderAcces(); }
   function upsertFacture(f) { const i = ADM.factures.findIndex((x) => x.id === f.id); if (i >= 0) ADM.factures[i] = f; renderFactures(); renderBudgets(); }
 
   function fillFilters() {
@@ -378,14 +403,14 @@
       .map((s) => '<div class="stat"><b>' + s[0] + '</b><span>' + s[1] + '</span></div>').join('');
     const rows = filtered();
     if (!rows.length) { $('#tbl-f').innerHTML = '<div class="empty">' + (F.length ? 'Aucune facture ne correspond aux filtres.' : 'Aucune facture reçue pour le moment.') + '</div>'; return; }
-    $('#tbl-f').innerHTML = '<table><thead><tr><th>Reçue le</th><th>Réf.</th><th>Chantier</th><th>Entreprise</th><th>Désignation</th><th>Montant</th><th>Fichier</th><th>Validation</th><th>Paiement</th><th>Actions</th></tr></thead><tbody>' +
+    $('#tbl-f').innerHTML = '<table><thead><tr><th>Reçue le</th><th>Réf.</th><th>Chantier</th><th>Entreprise</th><th>Objet</th><th class="num">TTC / HT</th><th>Fichier</th><th>Validation</th><th>Paiement</th><th>Actions</th></tr></thead><tbody>' +
       rows.map((f) => {
         const open = f.validation !== 'Validée';
         return '<tr><td style="white-space:nowrap">' + esc(fmtDate(f.created_at, true)) + '</td><td class="mono">' + esc(f.ref) + '</td><td>' + esc(f.chantier) + '</td><td>' + esc(f.entreprise) + '</td>' +
-          '<td>' + esc(f.designation) + (f.numero ? '<div class="muted">N° ' + esc(f.numero) + '</div>' : '') + (f.note ? '<div class="note">' + esc(f.note) + '</div>' : '') + '</td>' +
-          '<td class="num">' + esc(money(f)) + '</td>' +
+          '<td>' + esc(f.designation) + (f.numero ? '<div class="muted">N° ' + esc(f.numero) + '</div>' : '') + (f.entreprise_nom && f.entreprise_nom !== f.entreprise ? '<div class="muted">Déclarée : ' + esc(f.entreprise_nom) + '</div>' : '') + (f.note ? '<div class="note">' + esc(f.note) + '</div>' : '') + '</td>' +
+          '<td class="num">' + amounts(f) + '</td>' +
           '<td><button class="link file-link" data-file="' + esc(f.id) + '">Ouvrir</button></td>' +
-          '<td>' + badge(f.validation) + (f.traitee_le ? '<div class="muted" style="font-size:12px;margin-top:3px">' + esc(fmtDate(f.traitee_le)) + '</div>' : '') + '</td>' +
+          '<td>' + badge(f.validation) + (f.traitee_le ? '<div class="muted" style="font-size:12px;margin-top:3px">' + esc(fmtDate(f.traitee_le)) + (f.traitee_par ? ' · ' + esc(f.traitee_par) : '') + '</div>' : '') + '</td>' +
           '<td><select data-pay="' + esc(f.id) + '" style="min-width:110px;padding:5px 8px">' + ['Non payée', 'Payée'].map((p) => '<option' + (p === f.paiement ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></td>' +
           '<td class="actions">' + (open ? '<button class="btn ok sm" data-val="' + esc(f.id) + '">Valider</button><button class="btn ko sm" data-rej="' + esc(f.id) + '">Refuser</button>' : '<span class="muted" style="font-size:13px">Transmise</span>') + '</td></tr>';
       }).join('') + '</tbody></table>';
@@ -419,8 +444,9 @@
 
   $('#btn-csv').onclick = () => {
     const cols = [['Réf.', 'ref'], ['Reçue le', (f) => fmtDate(f.created_at, true)], ['Chantier', 'chantier'], ['Entreprise', 'entreprise'], ['Désignation', 'designation'],
-      ['N° facture', 'numero'], ['Montant', (f) => f.montant == null ? '' : String(f.montant).replace('.', ',')], ['Devise', 'devise'], ['Validation', 'validation'],
-      ['Traitée le', (f) => fmtDate(f.traitee_le, true)], ['Paiement', 'paiement'], ['Payée le', (f) => fmtDate(f.paye_le)], ['Note', 'note']];
+      ['Entreprise déclarée', 'entreprise_nom'], ['N° facture', 'numero'], ['Montant HT', (f) => f.montant_ht == null ? '' : String(f.montant_ht).replace('.', ',')],
+      ['Montant TTC', (f) => (f.montant_ttc != null ? f.montant_ttc : f.montant) == null ? '' : String(f.montant_ttc != null ? f.montant_ttc : f.montant).replace('.', ',')], ['Devise', 'devise'], ['Validation', 'validation'],
+      ['Traitée le', (f) => fmtDate(f.traitee_le, true)], ['Traitée par', 'traitee_par'], ['Paiement', 'paiement'], ['Payée le', (f) => fmtDate(f.paye_le)], ['Note', 'note']];
     const cell = (v) => { let s = String(v == null ? '' : v); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
     const lines = [cols.map((c) => cell(c[0])).join(';')].concat(filtered().map((f) => cols.map((c) => cell(typeof c[1] === 'function' ? c[1](f) : f[c[1]])).join(';')));
     const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
@@ -466,9 +492,12 @@
   $('#f-ent').addEventListener('submit', (e) => {
     e.preventDefault();
     busy(e.submitter, async () => {
-      const d = await SB.fn('invite', { nom: $('#e-nom').value, email: $('#e-email').value, langue: $('#e-lang').value });
+      const chs = $$('#e-chs input:checked').map((i) => i.value);
+      const d = await SB.fn('invite', { nom: $('#e-nom').value, email: $('#e-email').value, langue: $('#e-lang').value, chantiers: chs });
       ADM.entreprises.push(d.entreprise); ADM.entreprises.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
-      $('#f-ent').reset(); renderEntreprises(); fillFilters(); toast('Accès créé, invitation envoyée à ' + d.entreprise.email);
+      chs.forEach((x) => ADM.acces.push({ entreprise_id: d.entreprise.id, chantier_id: x }));
+      renderAcces();
+      $('#f-ent').reset(); $$('#e-chs input').forEach((i) => { i.checked = false; }); renderEntreprises(); fillFilters(); toast('Accès créé, invitation envoyée à ' + d.entreprise.email);
     });
   });
   $('#tbl-e').addEventListener('click', (e) => {
@@ -476,7 +505,7 @@
     const get = (id) => ADM.entreprises.find((x) => x.id === id);
     const patch = (x, body, msg) => busy(b, async () => {
       const rows = await SB.rest('entreprises?id=eq.' + x.id, { method: 'PATCH', prefer: 'return=representation', body });
-      Object.assign(x, rows[0]); renderEntreprises(); toast(msg);
+      Object.assign(x, rows[0]); renderEntreprises(); renderAcces(); toast(msg);
     });
     if (b.dataset.inv) { const x = get(b.dataset.inv); if (confirm('Envoyer un nouveau lien d\'accès à ' + x.email + ' ?')) busy(b, async () => { await SB.fn('reinvite', { entreprise_id: x.id }); toast('Lien envoyé à ' + x.email); }); }
     if (b.dataset.mail) {
@@ -503,13 +532,13 @@
     busy(e.submitter, async () => {
       const rows = await SB.rest('chantiers', { method: 'POST', prefer: 'return=representation', body: { nom: $('#c-nom').value.trim() } });
       ADM.chantiers.push(rows[0]); ADM.chantiers.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
-      $('#f-ch').reset(); renderChantiers(); renderBudgets(); fillFilters(); toast('Chantier ajouté');
+      $('#f-ch').reset(); renderChantiers(); renderBudgets(); renderAcces(); fillFilters(); toast('Chantier ajouté');
     });
   });
   $('#tbl-c').addEventListener('click', (e) => {
     const b = e.target.closest('[data-ch]'); if (!b) return;
     const c = ADM.chantiers.find((x) => x.id === b.dataset.ch);
-    busy(b, async () => { const rows = await SB.rest('chantiers?id=eq.' + c.id, { method: 'PATCH', prefer: 'return=representation', body: { actif: !c.actif } }); Object.assign(c, rows[0]); renderChantiers(); renderBudgets(); });
+    busy(b, async () => { const rows = await SB.rest('chantiers?id=eq.' + c.id, { method: 'PATCH', prefer: 'return=representation', body: { actif: !c.actif } }); Object.assign(c, rows[0]); renderChantiers(); renderBudgets(); renderAcces(); });
   });
 
 
@@ -526,7 +555,7 @@
     let paye = 0, attente = 0, horsDevise = 0, sansMontant = 0;
     list.forEach((f) => {
       if (f.validation === 'Refusée') return;
-      const m = num(f.montant);
+      const m = num(f.montant_ttc != null ? f.montant_ttc : f.montant);
       if (m === null) { sansMontant++; return; }
       if (f.devise !== dev) { horsDevise++; return; }
       if (f.paiement === 'Payée') paye += m; else attente += m;
@@ -569,11 +598,11 @@
     if (r.sansMontant) w.push(r.sansMontant + ' facture(s) sans montant ne sont pas comptées.');
     $('#b-warn').textContent = w.join(' ');
     if (!r.list.length) { $('#b-list').innerHTML = '<div class="empty">Aucune facture sur ce chantier.</div>'; return; }
-    $('#b-list').innerHTML = '<table><thead><tr><th>Reçue le</th><th>Réf.</th><th>Entreprise</th><th>Désignation</th><th class="num">Montant</th><th>Validation</th><th>Paiement</th></tr></thead><tbody>' +
+    $('#b-list').innerHTML = '<table><thead><tr><th>Reçue le</th><th>Réf.</th><th>Entreprise</th><th>Objet</th><th class="num">TTC / HT</th><th>Validation</th><th>Paiement</th></tr></thead><tbody>' +
       r.list.map((f) => '<tr' + (f.validation === 'Refusée' ? ' class="off" title="Refusée : non comptée"' : '') + '><td style="white-space:nowrap">' + esc(fmtDate(f.created_at)) + '</td><td class="mono">' + esc(f.ref) + '</td><td>' + esc(f.entreprise) + '</td>' +
-        '<td>' + esc(f.designation) + (f.numero ? '<div class="muted">N° ' + esc(f.numero) + '</div>' : '') + '</td><td class="num">' + esc(money(f)) + '</td>' +
+        '<td>' + esc(f.designation) + (f.numero ? '<div class="muted">N° ' + esc(f.numero) + '</div>' : '') + '</td><td class="num">' + amounts(f) + '</td>' +
         '<td>' + badge(f.validation) + '</td><td>' + badge(f.paiement) + '</td></tr>').join('') +
-      '</tbody><tfoot><tr><td colspan="4">Total payé / en attente de paiement</td><td class="num" colspan="3">' + esc(fmtM(r.paye, r.dev)) + ' / ' + esc(fmtM(r.attente, r.dev)) + '</td></tr></tfoot></table>';
+      '</tbody><tfoot><tr><td colspan="4">Total TTC payé / en attente de paiement</td><td class="num" colspan="3">' + esc(fmtM(r.paye, r.dev)) + ' / ' + esc(fmtM(r.attente, r.dev)) + '</td></tr></tfoot></table>';
   }
   $('#tbl-bud').addEventListener('click', (e) => { const tr = e.target.closest('[data-bud]'); if (!tr) return; BUD_CH = tr.dataset.bud; $('#b-ch').value = BUD_CH; renderBudgetDetail(); $('#bud-detail').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   $('#b-ch').addEventListener('change', () => { BUD_CH = $('#b-ch').value; $('#b-mt').value = ''; renderBudgetDetail(); });
@@ -594,13 +623,67 @@
     const nb = (n) => (n === null || n === undefined ? '' : String(Math.round(n * 100) / 100).replace('.', ','));
     const lines = [['Chantier', ch.nom], ['Devise', r.dev], ['Budget', nb(r.budget)], ['Total payé', nb(r.paye)], ['En attente de paiement', nb(r.attente)], ['Budget restant', nb(r.restant)], ['Prévisionnel', nb(r.prev)], []]
       .map((l) => l.map(cell).join(';'));
-    lines.push(['Réf.', 'Reçue le', 'Entreprise', 'Désignation', 'N° facture', 'Montant', 'Devise', 'Validation', 'Paiement', 'Payée le'].map(cell).join(';'));
-    r.list.forEach((f) => lines.push([f.ref, fmtDate(f.created_at), f.entreprise, f.designation, f.numero, nb(num(f.montant)), f.devise, f.validation, f.paiement, fmtDate(f.paye_le)].map(cell).join(';')));
+    lines.push(['Réf.', 'Reçue le', 'Entreprise', 'Objet', 'N° facture', 'Montant HT', 'Montant TTC', 'Devise', 'Validation', 'Paiement', 'Payée le'].map(cell).join(';'));
+    r.list.forEach((f) => lines.push([f.ref, fmtDate(f.created_at), f.entreprise, f.designation, f.numero, nb(num(f.montant_ht)), nb(num(f.montant_ttc != null ? f.montant_ttc : f.montant)), f.devise, f.validation, f.paiement, fmtDate(f.paye_le)].map(cell).join(';')));
     const blob = new Blob([String.fromCharCode(0xfeff) + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = 'budget-' + ch.nom.replace(/[^\w-]+/g, '_') + '-' + new Date().toISOString().slice(0, 10) + '.csv';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
+
+
+  /* ---------- Accès : administrateurs et entreprises par chantier ---------- */
+  function renderAcces() {
+    if (!ADM) return;
+    const C = ADM.chantiers.filter((c) => c.actif), E = ADM.entreprises, A = ADM.admins;
+    $('#e-chs').innerHTML = C.length ? C.map((c) => '<label><input type="checkbox" value="' + c.id + '">' + esc(c.nom) + '</label>').join('') : '<span class="muted" style="font-size:13px">Créez d\'abord un chantier.</span>';
+    if (!isSuper()) return;
+    const me = SB.session && SB.session.user ? SB.session.user.id : '';
+    $('#tbl-adm').innerHTML = A.length ? '<table><thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Depuis</th><th></th></tr></thead><tbody>' +
+      A.map((a) => '<tr><td>' + esc(a.nom || '') + '</td><td>' + esc(a.email || '') + '</td><td><span class="role">' + (a.role === 'super' ? 'Super administrateur' : 'Valideur') + '</span></td><td>' + esc(fmtDate(a.created_at)) + '</td>' +
+        '<td class="actions">' + (a.role !== 'super' && a.user_id !== me ? '<button class="btn ghost sm" data-rm-adm="' + a.user_id + '">Retirer l\'accès</button>' : '') + '</td></tr>').join('') + '</tbody></table>'
+      : '<div class="empty">Aucun administrateur.</div>';
+    const has = (e, c) => ADM.acces.some((x) => x.entreprise_id === e && x.chantier_id === c);
+    $('#tbl-matrix').innerHTML = !E.length || !ADM.chantiers.length ? '<div class="empty">Il faut au moins une entreprise et un chantier.</div>' :
+      '<table><thead><tr><th>Entreprise</th>' + ADM.chantiers.map((c) => '<th class="ck">' + esc(c.nom) + (c.actif ? '' : ' (fermé)') + '</th>').join('') + '</tr></thead><tbody>' +
+      E.map((e) => '<tr><td><b>' + esc(e.nom) + '</b>' + (e.active ? '' : ' <span class="badge b-off">Bloqué</span>') + '</td>' + ADM.chantiers.map((c) => '<td class="ck"><input type="checkbox" data-e="' + e.id + '" data-c="' + c.id + '"' + (has(e.id, c.id) ? ' checked' : '') + ' title="' + esc(e.nom + ' / ' + c.nom) + '"></td>').join('') + '</tr>').join('') + '</tbody></table>';
+    const vals = A.filter((a) => a.role === 'valideur'), sup = A.filter((a) => a.role === 'super');
+    const nm = (a) => esc(a.nom || a.email || '');
+    $('#tbl-recap-acces').innerHTML = !ADM.chantiers.length ? '<div class="empty">Aucun chantier.</div>' :
+      '<table><thead><tr><th>Chantier</th><th>Administrateurs (validation / refus)</th><th>Entreprises (dépôt de factures)</th></tr></thead><tbody>' +
+      ADM.chantiers.map((c) => {
+        const ents = E.filter((e) => has(e.id, c.id));
+        return '<tr><td><b>' + esc(c.nom) + '</b>' + (c.actif ? '' : ' <span class="badge b-off">Fermé</span>') + '</td>' +
+          '<td>' + sup.map((a) => nm(a) + ' <span class="role">super</span>').concat(vals.map(nm)).join('<br>') + '</td>' +
+          '<td>' + (ents.length ? ents.map((e) => esc(e.nom) + (e.active ? '' : ' <span class="badge b-off">Bloqué</span>')).join('<br>') : '<span class="muted">Aucune</span>') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+  $('#tbl-matrix').addEventListener('change', (e) => {
+    const cb = e.target.closest('input[data-e]'); if (!cb) return;
+    const ent = cb.dataset.e, ch = cb.dataset.c, on = cb.checked;
+    cb.disabled = true;
+    const req = on ? SB.rest('entreprise_chantiers', { method: 'POST', prefer: 'return=minimal', body: { entreprise_id: ent, chantier_id: ch } })
+      : SB.rest('entreprise_chantiers?entreprise_id=eq.' + ent + '&chantier_id=eq.' + ch, { method: 'DELETE', prefer: 'return=minimal' });
+    req.then(() => {
+      ADM.acces = ADM.acces.filter((x) => !(x.entreprise_id === ent && x.chantier_id === ch));
+      if (on) ADM.acces.push({ entreprise_id: ent, chantier_id: ch });
+      renderAcces(); toast(on ? 'Accès au chantier ajouté' : 'Accès au chantier retiré');
+    }).catch((ex) => { toast(ex.message, true); renderAcces(); });
+  });
+  $('#f-adm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    busy(e.submitter, async () => {
+      const d = await SB.fn('add_admin', { nom: $('#a-nom').value, email: $('#a-email').value });
+      ADM.admins = ADM.admins.filter((a) => a.user_id !== d.admin.user_id).concat([d.admin]);
+      $('#f-adm').reset(); renderAcces(); toast('Valideur nommé, invitation envoyée à ' + d.admin.email);
+    });
+  });
+  $('#tbl-adm').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rm-adm]'); if (!b) return;
+    const a = ADM.admins.find((x) => x.user_id === b.dataset.rmAdm);
+    if (!confirm('Retirer l\'accès administrateur de ' + (a.nom || a.email) + ' ?')) return;
+    busy(b, async () => { await SB.fn('remove_admin', { user_id: a.user_id }); ADM.admins = ADM.admins.filter((x) => x.user_id !== a.user_id); renderAcces(); toast('Accès retiré'); });
+  });
 
   /* ---------- Paramètres ---------- */
   function renderParams() {
@@ -628,7 +711,7 @@
   /* ---------- Navigation admin ---------- */
   function showTab(name) {
     $$('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
-    ['factures', 'budgets', 'entreprises', 'chantiers', 'params'].forEach((x) => { $('#tab-' + x).hidden = x !== name; });
+    ['factures', 'budgets', 'entreprises', 'chantiers', 'acces', 'params'].forEach((x) => { $('#tab-' + x).hidden = x !== name; });
   }
   $$('[data-tab]').forEach((b) => { b.onclick = () => showTab(b.dataset.tab); });
   $('#btn-refresh').onclick = (e) => busy(e.target, async () => { await loadAdmin(); toast('À jour'); });
