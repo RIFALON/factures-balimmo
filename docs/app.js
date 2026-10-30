@@ -341,18 +341,19 @@
   let ADM = null, REJ = null;
 
   async function loadAdmin() {
-    const [f, e, c, s] = await Promise.all([
+    const [f, e, c, s, b] = await Promise.all([
       SB.rest('registre?select=*&order=created_at.desc'),
       SB.rest('entreprises?select=*&order=nom'),
       SB.rest('chantiers?select=*&order=nom'),
       SB.rest('settings?select=*&id=eq.1'),
+      SB.rest('chantier_budgets?select=*').catch(() => []),
     ]);
-    ADM = { factures: f || [], entreprises: e || [], chantiers: c || [], settings: (s && s[0]) || {} };
+    ADM = { factures: f || [], entreprises: e || [], chantiers: c || [], settings: (s && s[0]) || {}, budgets: b || [] };
     renderAdmin();
     if (!ADM.settings.validation_email) toast('Pensez à renseigner l\'adresse de validation dans Paramètres');
   }
-  function renderAdmin() { fillFilters(); renderFactures(); renderEntreprises(); renderChantiers(); renderParams(); }
-  function upsertFacture(f) { const i = ADM.factures.findIndex((x) => x.id === f.id); if (i >= 0) ADM.factures[i] = f; renderFactures(); }
+  function renderAdmin() { fillFilters(); renderFactures(); renderEntreprises(); renderChantiers(); renderParams(); renderBudgets(); }
+  function upsertFacture(f) { const i = ADM.factures.findIndex((x) => x.id === f.id); if (i >= 0) ADM.factures[i] = f; renderFactures(); renderBudgets(); }
 
   function fillFilters() {
     const keep = (sel, opts, all) => {
@@ -411,7 +412,7 @@
     s.disabled = true;
     const paye = s.value === 'Payée';
     SB.rest('factures?id=eq.' + s.dataset.pay, { method: 'PATCH', prefer: 'return=minimal', body: { paiement: s.value, paye_le: paye ? new Date().toISOString() : null } })
-      .then(() => { const f = ADM.factures.find((x) => x.id === s.dataset.pay); f.paiement = s.value; f.paye_le = paye ? new Date().toISOString() : null; renderFactures(); toast(f.ref + ' : ' + f.paiement); })
+      .then(() => { const f = ADM.factures.find((x) => x.id === s.dataset.pay); f.paiement = s.value; f.paye_le = paye ? new Date().toISOString() : null; renderFactures(); renderBudgets(); toast(f.ref + ' : ' + f.paiement); })
       .catch((ex) => { toast(ex.message, true); renderFactures(); });
   });
   ['#q', '#fl-ch', '#fl-ent', '#fl-val', '#fl-pay'].forEach((s) => $(s).addEventListener('input', renderFactures));
@@ -442,7 +443,8 @@
     if (!$('#n-fr').value.trim() && !$('#n-en').value.trim()) { toast('Écrivez la note avant d\'envoyer', true); return; }
     busy(e.target, async () => {
       const d = await SB.fn('reject', { facture_id: REJ.id, note_fr: $('#n-fr').value, note_en: $('#n-en').value });
-      upsertFacture(d.facture); $('#dlg').close(); toast('Facture ' + REJ.ref + ' refusée, note envoyée');
+      if (d.note_en && !$('#n-en').value.trim()) $('#n-en').value = d.note_en;
+      upsertFacture(d.facture); $('#dlg').close(); toast('Facture ' + REJ.ref + ' refusée, note FR/EN envoyée à l\'entreprise');
     });
   };
 
@@ -501,14 +503,104 @@
     busy(e.submitter, async () => {
       const rows = await SB.rest('chantiers', { method: 'POST', prefer: 'return=representation', body: { nom: $('#c-nom').value.trim() } });
       ADM.chantiers.push(rows[0]); ADM.chantiers.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
-      $('#f-ch').reset(); renderChantiers(); fillFilters(); toast('Chantier ajouté');
+      $('#f-ch').reset(); renderChantiers(); renderBudgets(); fillFilters(); toast('Chantier ajouté');
     });
   });
   $('#tbl-c').addEventListener('click', (e) => {
     const b = e.target.closest('[data-ch]'); if (!b) return;
     const c = ADM.chantiers.find((x) => x.id === b.dataset.ch);
-    busy(b, async () => { const rows = await SB.rest('chantiers?id=eq.' + c.id, { method: 'PATCH', prefer: 'return=representation', body: { actif: !c.actif } }); Object.assign(c, rows[0]); renderChantiers(); });
+    busy(b, async () => { const rows = await SB.rest('chantiers?id=eq.' + c.id, { method: 'PATCH', prefer: 'return=representation', body: { actif: !c.actif } }); Object.assign(c, rows[0]); renderChantiers(); renderBudgets(); });
   });
+
+
+  /* ---------- Budgets par chantier ---------- */
+  let BUD_CH = null;
+  const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+  const fmtM = (n, dev) => (n === null || n === undefined ? '' : Number(n).toLocaleString('fr-FR', { minimumFractionDigits: dev === 'IDR' ? 0 : 2, maximumFractionDigits: dev === 'IDR' ? 0 : 2 }) + ' ' + dev);
+  function budgetOf(chId) { return ADM.budgets.find((b) => b.chantier_id === chId) || null; }
+  function recap(ch) {
+    const b = budgetOf(ch.id);
+    const dev = b ? b.devise : 'IDR';
+    const budget = b ? Number(b.budget) : null;
+    const list = ADM.factures.filter((f) => f.chantier_id === ch.id);
+    let paye = 0, attente = 0, horsDevise = 0, sansMontant = 0;
+    list.forEach((f) => {
+      if (f.validation === 'Refusée') return;
+      const m = num(f.montant);
+      if (m === null) { sansMontant++; return; }
+      if (f.devise !== dev) { horsDevise++; return; }
+      if (f.paiement === 'Payée') paye += m; else attente += m;
+    });
+    return { ch, dev, budget, list, paye, attente, horsDevise, sansMontant,
+      restant: budget === null ? null : budget - paye, prev: budget === null ? null : budget - paye - attente };
+  }
+  function renderBudgets() {
+    if (!ADM) return;
+    const C = ADM.chantiers;
+    if (!C.length) { $('#tbl-bud').innerHTML = '<div class="empty">Aucun chantier. Créez-en un dans l\'onglet Chantiers.</div>'; $('#bud-detail').hidden = true; return; }
+    const R = C.map(recap);
+    const cls = (n) => (n !== null && n < 0 ? ' neg' : '');
+    $('#tbl-bud').innerHTML = '<table><thead><tr><th>Chantier</th><th class="num">Budget</th><th class="num">Payé</th><th class="num">En attente de paiement</th><th class="num">Budget restant</th><th class="num">Prévisionnel</th><th>Factures</th></tr></thead><tbody>' +
+      R.map((r) => '<tr class="clic" data-bud="' + r.ch.id + '"><td><b>' + esc(r.ch.nom) + '</b>' + (r.ch.actif ? '' : ' <span class="badge b-off">Fermé</span>') + '</td>' +
+        '<td class="num">' + (r.budget === null ? '<span class="muted">à saisir</span>' : esc(fmtM(r.budget, r.dev))) + '</td>' +
+        '<td class="num">' + esc(fmtM(r.paye, r.dev)) + '</td><td class="num">' + esc(fmtM(r.attente, r.dev)) + '</td>' +
+        '<td class="num' + cls(r.restant) + '">' + (r.restant === null ? '' : esc(fmtM(r.restant, r.dev))) + '</td>' +
+        '<td class="num' + cls(r.prev) + '">' + (r.prev === null ? '' : esc(fmtM(r.prev, r.dev))) + '</td>' +
+        '<td>' + r.list.length + (r.horsDevise || r.sansMontant ? ' <span class="muted" title="non comptées dans les totaux">(' + (r.horsDevise + r.sansMontant) + ' non comptée' + (r.horsDevise + r.sansMontant > 1 ? 's' : '') + ')</span>' : '') + '</td></tr>').join('') +
+      '</tbody></table>';
+    const sel = $('#b-ch');
+    sel.innerHTML = C.map((c) => '<option value="' + c.id + '">' + esc(c.nom) + '</option>').join('');
+    if (!BUD_CH || !C.some((c) => c.id === BUD_CH)) BUD_CH = C[0].id;
+    sel.value = BUD_CH;
+    renderBudgetDetail();
+  }
+  function renderBudgetDetail() {
+    const ch = ADM.chantiers.find((c) => c.id === BUD_CH); if (!ch) return;
+    $('#bud-detail').hidden = false;
+    const r = recap(ch);
+    if (document.activeElement !== $('#b-mt')) $('#b-mt').value = r.budget === null ? '' : String(r.budget);
+    $('#b-dev').value = r.dev;
+    const st = (v, label, signed) => '<div class="stat' + (signed && v !== null ? (v < 0 ? ' neg' : ' pos') : '') + '"><b>' + (v === null ? '—' : esc(fmtM(v, r.dev))) + '</b><span>' + label + '</span></div>';
+    $('#b-stats').innerHTML = st(r.budget, 'Budget') + st(r.paye, 'Total payé') + st(r.attente, 'En attente de paiement') +
+      st(r.restant, 'Budget restant (budget − payé)', true) + st(r.prev, 'Prévisionnel (− payé − en attente)', true);
+    const w = [];
+    if (r.budget === null) w.push('Saisissez le budget du chantier pour calculer le restant.');
+    if (r.horsDevise) w.push(r.horsDevise + ' facture(s) dans une autre devise que ' + r.dev + ' ne sont pas comptées dans les totaux.');
+    if (r.sansMontant) w.push(r.sansMontant + ' facture(s) sans montant ne sont pas comptées.');
+    $('#b-warn').textContent = w.join(' ');
+    if (!r.list.length) { $('#b-list').innerHTML = '<div class="empty">Aucune facture sur ce chantier.</div>'; return; }
+    $('#b-list').innerHTML = '<table><thead><tr><th>Reçue le</th><th>Réf.</th><th>Entreprise</th><th>Désignation</th><th class="num">Montant</th><th>Validation</th><th>Paiement</th></tr></thead><tbody>' +
+      r.list.map((f) => '<tr' + (f.validation === 'Refusée' ? ' class="off" title="Refusée : non comptée"' : '') + '><td style="white-space:nowrap">' + esc(fmtDate(f.created_at)) + '</td><td class="mono">' + esc(f.ref) + '</td><td>' + esc(f.entreprise) + '</td>' +
+        '<td>' + esc(f.designation) + (f.numero ? '<div class="muted">N° ' + esc(f.numero) + '</div>' : '') + '</td><td class="num">' + esc(money(f)) + '</td>' +
+        '<td>' + badge(f.validation) + '</td><td>' + badge(f.paiement) + '</td></tr>').join('') +
+      '</tbody><tfoot><tr><td colspan="4">Total payé / en attente de paiement</td><td class="num" colspan="3">' + esc(fmtM(r.paye, r.dev)) + ' / ' + esc(fmtM(r.attente, r.dev)) + '</td></tr></tfoot></table>';
+  }
+  $('#tbl-bud').addEventListener('click', (e) => { const tr = e.target.closest('[data-bud]'); if (!tr) return; BUD_CH = tr.dataset.bud; $('#b-ch').value = BUD_CH; renderBudgetDetail(); $('#bud-detail').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  $('#b-ch').addEventListener('change', () => { BUD_CH = $('#b-ch').value; $('#b-mt').value = ''; renderBudgetDetail(); });
+  $('#b-save').onclick = (e) => {
+    const raw = $('#b-mt').value.replace(/[\s]/g, '');
+    const norm = /,\d{1,2}$/.test(raw) ? raw.replace(/\./g, '').replace(',', '.') : raw.replace(/,/g, '');
+    const v = Number(norm);
+    if (!raw || !isFinite(v) || v < 0) { toast('Budget invalide', true); return; }
+    busy(e.target, async () => {
+      const rows = await SB.rest('chantier_budgets', { method: 'POST', prefer: 'resolution=merge-duplicates,return=representation', body: { chantier_id: BUD_CH, budget: v, devise: $('#b-dev').value, updated_at: new Date().toISOString() } });
+      ADM.budgets = ADM.budgets.filter((b) => b.chantier_id !== BUD_CH).concat(rows);
+      $('#b-mt').blur(); renderBudgets(); toast('Budget enregistré');
+    });
+  };
+  $('#b-csv').onclick = () => {
+    const ch = ADM.chantiers.find((c) => c.id === BUD_CH); const r = recap(ch);
+    const cell = (v) => { let s = String(v == null ? '' : v); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+    const nb = (n) => (n === null || n === undefined ? '' : String(Math.round(n * 100) / 100).replace('.', ','));
+    const lines = [['Chantier', ch.nom], ['Devise', r.dev], ['Budget', nb(r.budget)], ['Total payé', nb(r.paye)], ['En attente de paiement', nb(r.attente)], ['Budget restant', nb(r.restant)], ['Prévisionnel', nb(r.prev)], []]
+      .map((l) => l.map(cell).join(';'));
+    lines.push(['Réf.', 'Reçue le', 'Entreprise', 'Désignation', 'N° facture', 'Montant', 'Devise', 'Validation', 'Paiement', 'Payée le'].map(cell).join(';'));
+    r.list.forEach((f) => lines.push([f.ref, fmtDate(f.created_at), f.entreprise, f.designation, f.numero, nb(num(f.montant)), f.devise, f.validation, f.paiement, fmtDate(f.paye_le)].map(cell).join(';')));
+    const blob = new Blob([String.fromCharCode(0xfeff) + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'budget-' + ch.nom.replace(/[^\w-]+/g, '_') + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
 
   /* ---------- Paramètres ---------- */
   function renderParams() {
@@ -536,7 +628,7 @@
   /* ---------- Navigation admin ---------- */
   function showTab(name) {
     $$('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
-    ['factures', 'entreprises', 'chantiers', 'params'].forEach((x) => { $('#tab-' + x).hidden = x !== name; });
+    ['factures', 'budgets', 'entreprises', 'chantiers', 'params'].forEach((x) => { $('#tab-' + x).hidden = x !== name; });
   }
   $$('[data-tab]').forEach((b) => { b.onclick = () => showTab(b.dataset.tab); });
   $('#btn-refresh').onclick = (e) => busy(e.target, async () => { await loadAdmin(); toast('À jour'); });
