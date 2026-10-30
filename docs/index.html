@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Balimmo · Factures</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f3d3a'/%3E%3Cpath d='M10 8h9l4 4v12H10z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f2ee; --surface:#ffffff; --ink:#1d2523; --muted:#6b7471; --line:#e3dfd8;
+  --brand:#1f3d3a; --brand-2:#2f5f59; --accent:#c8873a;
+  --ok:#2e7d55; --ok-bg:#e3f2ea; --ko:#b5463c; --ko-bg:#f8e4e1; --wait:#a8701c; --wait-bg:#fbefd8;
+  --radius:10px; --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.04);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--brand-2)}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+h2{font-size:18px}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+.narrow{max-width:760px}
+.top{background:var(--brand);color:#fff}
+.top .wrap{display:flex;align-items:center;gap:16px;padding-top:14px;padding-bottom:14px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:17px;letter-spacing:.02em}
+.brand small{display:block;font-weight:400;opacity:.7;font-size:12px;letter-spacing:0}
+.spacer{flex:1}
+.nav{display:flex;gap:4px;flex-wrap:wrap}
+.nav button{background:transparent;color:#d8e6e3;border:0;padding:8px 12px;border-radius:8px;font:inherit;font-weight:500;cursor:pointer}
+.nav button.on,.nav button:hover{background:rgba(255,255,255,.12);color:#fff}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:18px}
+.card h2{margin-bottom:14px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:4px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brand-2);outline-offset:-1px;border-color:transparent}
+textarea{min-height:120px;resize:vertical}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-weight:600;border:1px solid transparent;border-radius:8px;padding:9px 16px;cursor:pointer;background:var(--brand);color:#fff;white-space:nowrap}
+.btn:hover{background:var(--brand-2)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--muted)}
+.btn.ok{background:var(--ok)} .btn.ko{background:var(--ko)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.row>*{flex:1 1 160px}
+.row>.btn{flex:0 0 auto}
+.muted{color:var(--muted)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em}
+.badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)} .b-ko{background:var(--ko-bg);color:var(--ko)} .b-wait{background:var(--wait-bg);color:var(--wait)}
+.b-off{background:#eee;color:#777}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);background:#faf9f6;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+td.actions{white-space:nowrap}
+td.actions .btn{margin-right:4px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.stat b{display:block;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted)}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.center{min-height:80vh;display:grid;place-items:center;padding:16px}
+.login{width:100%;max-width:380px}
+.err{color:var(--ko);font-size:14px;margin-top:8px;min-height:1em}
+.note{white-space:pre-wrap;font-size:13px;color:var(--ko);margin-top:6px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:90vw}
+#toast.show{opacity:1}
+#toast.error{background:var(--ko)}
+dialog{border:0;border-radius:12px;padding:0;width:min(640px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(20,30,28,.45)}
+dialog .card{margin:0;border:0;box-shadow:none}
+.dlg-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+.tr-btns{display:flex;gap:6px;margin:8px 0}
+.lang{display:flex;gap:2px;background:rgba(255,255,255,.12);border-radius:8px;padding:2px}
+.lang button{background:transparent;border:0;color:#d8e6e3;font:inherit;font-weight:600;font-size:13px;padding:5px 9px;border-radius:6px;cursor:pointer}
+.lang button.on{background:#fff;color:var(--brand)}
+.drop{border:2px dashed var(--line);border-radius:var(--radius);padding:22px;text-align:center;color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s}
+.drop.over,.drop:hover{border-color:var(--brand-2);background:#f7faf9}
+.drop b{color:var(--ink)}
+[hidden]{display:none!important}
+.link{background:none;border:0;color:var(--brand-2);font:inherit;cursor:pointer;padding:0;text-decoration:underline}
+.ok-msg{color:var(--ok);font-size:14px;margin-top:8px}
+.top .who{font-size:13px;opacity:.8}
+.file-link{white-space:nowrap}
+td.mono{white-space:nowrap}
+@media (max-width:640px){ .hide-sm{display:none} .card{padding:16px}
+  #ent-list .tablewrap{border:0;background:none}
+  #ent-list table,#ent-list tbody,#ent-list tr,#ent-list td{display:block}
+  #ent-list thead{display:none}
+  #ent-list tr{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px}
+  #ent-list td{border:0;padding:2px 0}
+  #ent-list td.d{font-size:12px;color:var(--muted)}
+  #ent-list td.b{display:inline-block;margin:6px 6px 0 0}
+  #ent-list td.hide-sm{display:none} }
+</style>
+
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">Balimmo<small id="sub"></small></div>
+    <nav class="nav" id="nav" hidden>
+      <button data-tab="factures" class="on">Factures</button>
+      <button data-tab="entreprises">Entreprises</button>
+      <button data-tab="chantiers">Chantiers</button>
+      <button data-tab="params">Paramètres</button>
+    </nav>
+    <div class="spacer"></div>
+    <span class="who" id="who"></span>
+    <div class="lang" id="langsw"><button data-lang="fr">FR</button><button data-lang="en">EN</button></div>
+    <button id="btn-refresh" class="btn ghost sm" hidden>Actualiser</button>
+    <button id="btn-logout" class="btn ghost sm" hidden data-t="logout"></button>
+  </div>
+</header>
+
+<!-- CHARGEMENT -->
+<div id="v-loading" class="center"><p class="muted">…</p></div>
+
+<!-- CONNEXION -->
+<div id="v-login" class="center" hidden>
+  <form class="card login" id="f-login" autocomplete="on">
+    <h2 data-t="loginTitle"></h2>
+    <p class="muted" data-t="loginHelp"></p>
+    <label for="l-email">Email</label>
+    <input id="l-email" type="email" autocomplete="username" required>
+    <label for="l-pwd" style="margin-top:10px" data-t="password"></label>
+    <input id="l-pwd" type="password" autocomplete="current-password" required>
+    <div class="err" id="login-err"></div>
+    <button class="btn" type="submit" style="width:100%;margin-top:8px" data-t="enter"></button>
+    <p style="margin:14px 0 0;text-align:center"><button type="button" class="link" id="go-forgot" data-t="forgot"></button></p>
+  </form>
+</div>
+
+<!-- MOT DE PASSE OUBLIÉ -->
+<div id="v-forgot" class="center" hidden>
+  <form class="card login" id="f-forgot">
+    <h2 data-t="forgotTitle"></h2>
+    <p class="muted" data-t="forgotHelp"></p>
+    <label for="fg-email">Email</label>
+    <input id="fg-email" type="email" required>
+    <div class="err" id="fg-err"></div><div class="ok-msg" id="fg-ok"></div>
+    <button class="btn" type="submit" style="width:100%;margin-top:8px" data-t="sendLink"></button>
+    <p style="margin:14px 0 0;text-align:center"><button type="button" class="link" id="back-login" data-t="backLogin"></button></p>
+  </form>
+</div>
+
+<!-- CHOIX DU MOT DE PASSE -->
+<div id="v-setpw" class="center" hidden>
+  <form class="card login" id="f-setpw">
+    <h2 data-t="setpwTitle"></h2>
+    <p class="muted" id="setpw-who"></p>
+    <label for="sp-1" data-t="newPwd"></label>
+    <input id="sp-1" type="password" autocomplete="new-password" minlength="8" required>
+    <label for="sp-2" style="margin-top:10px" data-t="confirmPwd"></label>
+    <input id="sp-2" type="password" autocomplete="new-password" minlength="8" required>
+    <div class="err" id="sp-err"></div>
+    <button class="btn" type="submit" style="width:100%;margin-top:8px" data-t="save"></button>
+  </form>
+</div>
+
+<!-- ESPACE ENTREPRISE -->
+<main id="v-ent" class="wrap narrow" hidden>
+  <p class="muted" style="margin:0 0 14px"><span data-t="hello"></span> <b id="ent-name"></b></p>
+  <section class="card">
+    <h2 data-t="uploadTitle"></h2>
+    <form id="f-up" autocomplete="off">
+      <div class="grid">
+        <div><label for="u-ch" data-t="site"></label><select id="u-ch"></select></div>
+        <div><label for="u-num" data-t="number"></label><input id="u-num" maxlength="60"></div>
+      </div>
+      <div style="margin-top:12px"><label for="u-des" data-t="designation"></label><input id="u-des" maxlength="500"></div>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="u-mt" data-t="amount"></label><input id="u-mt" inputmode="decimal"></div>
+        <div><label for="u-dev" data-t="currency"></label><select id="u-dev"><option>IDR</option><option>EUR</option><option>USD</option></select></div>
+      </div>
+      <div style="margin-top:12px">
+        <label data-t="file"></label>
+        <div id="drop" class="drop" tabindex="0" role="button">
+          <input id="u-file" type="file" accept="application/pdf,image/jpeg,image/png" hidden>
+          <div id="drop-txt"></div>
+        </div>
+      </div>
+      <div class="err" id="up-err"></div>
+      <button id="btn-up" class="btn" type="submit" style="margin-top:6px" data-t="send"></button>
+    </form>
+  </section>
+  <section class="card">
+    <h2 data-t="myInvoices"></h2>
+    <div id="ent-list"></div>
+  </section>
+</main>
+
+<!-- ESPACE ADMIN -->
+<main id="v-admin" class="wrap" hidden>
+  <section id="tab-factures">
+    <div class="stats" id="stats"></div>
+    <div class="card" style="padding:14px">
+      <div class="row">
+        <div><label for="q">Recherche</label><input id="q" placeholder="Désignation, n°, réf…"></div>
+        <div><label for="fl-ch">Chantier</label><select id="fl-ch"></select></div>
+        <div><label for="fl-ent">Entreprise</label><select id="fl-ent"></select></div>
+        <div><label for="fl-val">Validation</label><select id="fl-val"><option value="">Toutes</option><option>En attente</option><option>Validée</option><option>Refusée</option></select></div>
+        <div><label for="fl-pay">Paiement</label><select id="fl-pay"><option value="">Tous</option><option>Non payée</option><option>Payée</option></select></div>
+        <button class="btn ghost" id="btn-csv" type="button">Export Excel (CSV)</button>
+      </div>
+    </div>
+    <div class="tablewrap" id="tbl-f"></div>
+  </section>
+
+  <section id="tab-entreprises" hidden>
+    <div class="card">
+      <h2>Ajouter une entreprise</h2>
+      <form id="f-ent" class="row" autocomplete="off">
+        <div><label for="e-nom">Nom</label><input id="e-nom" required></div>
+        <div><label for="e-email">Email de connexion</label><input id="e-email" type="email" required></div>
+        <div style="flex:0 0 120px"><label for="e-lang">Langue</label><select id="e-lang"><option value="fr">Français</option><option value="en">English</option></select></div>
+        <button class="btn" type="submit">Créer et inviter</button>
+      </form>
+      <p class="muted" style="margin:10px 0 0;font-size:13px">L'entreprise reçoit un mail (FR + EN) avec un lien pour choisir son mot de passe. Le lien expire au bout de 24 h : « Renvoyer l'accès » en génère un nouveau.</p>
+    </div>
+    <div class="tablewrap" id="tbl-e"></div>
+  </section>
+
+  <section id="tab-chantiers" hidden>
+    <div class="card">
+      <h2>Ajouter un chantier</h2>
+      <form id="f-ch" class="row" autocomplete="off">
+        <div><label for="c-nom">Nom du chantier</label><input id="c-nom" required placeholder="ex. Villa Corail"></div>
+        <button class="btn" type="submit">Ajouter</button>
+      </form>
+      <p class="muted" style="margin:10px 0 0;font-size:13px">Seuls les chantiers ouverts apparaissent dans la liste des entreprises.</p>
+    </div>
+    <div class="tablewrap" id="tbl-c"></div>
+  </section>
+
+  <section id="tab-params" hidden>
+    <form id="f-set" class="card" autocomplete="off">
+      <h2>Paramètres</h2>
+      <div class="grid">
+        <div><label for="s-val">Adresse(s) qui reçoivent les factures validées</label><input id="s-val" placeholder="compta@exemple.com, autre@exemple.com"></div>
+        <div><label for="s-admin">Votre adresse (alertes, réponses aux mails)</label><input id="s-admin" type="email"></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:14px;color:var(--ink)"><input id="s-notify" type="checkbox" style="width:auto"> M'avertir par email à chaque nouvelle facture</label>
+      <button class="btn" type="submit" style="margin-top:16px">Enregistrer</button>
+    </form>
+    <form id="f-pwd" class="card" autocomplete="off">
+      <h2>Mon mot de passe</h2>
+      <div class="row">
+        <div><label for="p-1">Nouveau mot de passe (8 caractères minimum)</label><input id="p-1" type="password" autocomplete="new-password" minlength="8" required></div>
+        <button class="btn" type="submit">Changer</button>
+      </div>
+    </form>
+  </section>
+</main>
+
+<dialog id="dlg">
+  <form method="dialog" class="card">
+    <h2>Refuser la facture <span id="rej-ref" class="mono"></span></h2>
+    <p class="muted" id="rej-info" style="margin:6px 0 14px"></p>
+    <label for="n-fr">Note en français</label>
+    <textarea id="n-fr" placeholder="Motif du refus, éléments à corriger…"></textarea>
+    <div class="tr-btns">
+      <button type="button" class="btn ghost sm" id="tr-fr-en">Traduire FR → EN</button>
+      <button type="button" class="btn ghost sm" id="tr-en-fr">Traduire EN → FR</button>
+    </div>
+    <label for="n-en">Note in English</label>
+    <textarea id="n-en"></textarea>
+    <p class="muted" style="font-size:13px;margin:8px 0 0">Les deux versions partent dans le même mail. Relisez la traduction automatique avant l'envoi.</p>
+    <div class="dlg-foot">
+      <button type="button" class="btn ghost" id="rej-cancel">Annuler</button>
+      <button type="button" class="btn ko" id="rej-send">Refuser et envoyer la note</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast"></div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
