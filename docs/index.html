@@ -95,6 +95,12 @@ tfoot td{font-weight:700;background:#faf9f6;border-top:1px solid var(--line)}
 td.neg{color:var(--ko)}
 th.num{text-align:right}
 #b-stats .stat b{font-size:20px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips label{display:inline-flex;align-items:center;gap:6px;margin:0;padding:5px 10px;border:1px solid var(--line);border-radius:99px;background:#fff;color:var(--ink);font-size:13px;cursor:pointer}
+.chips input{width:auto}
+td.ck{text-align:center} td.ck input{width:18px;height:18px}
+.role{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:#e7eeec;color:var(--brand)}
+.sub-amt{display:block;font-size:12px;color:var(--muted);font-weight:400}
 @media (max-width:640px){ .hide-sm{display:none} .card{padding:16px}
   #ent-list .tablewrap{border:0;background:none}
   #ent-list table,#ent-list tbody,#ent-list tr,#ent-list td{display:block}
@@ -113,9 +119,10 @@ th.num{text-align:right}
     <div class="brand">Balimmo<small id="sub"></small></div>
     <nav class="nav" id="nav" hidden>
       <button data-tab="factures" class="on">Factures</button>
-      <button data-tab="entreprises">Entreprises</button>
       <button data-tab="budgets">Budgets</button>
-      <button data-tab="chantiers">Chantiers</button>
+      <button data-tab="entreprises" data-super>Entreprises</button>
+      <button data-tab="chantiers" data-super>Chantiers</button>
+      <button data-tab="acces" data-super>Accès</button>
       <button data-tab="params">Paramètres</button>
     </nav>
     <div class="spacer"></div>
@@ -179,12 +186,14 @@ th.num{text-align:right}
     <form id="f-up" autocomplete="off">
       <div class="grid">
         <div><label for="u-ch" data-t="site"></label><select id="u-ch"></select></div>
-        <div><label for="u-num" data-t="number"></label><input id="u-num" maxlength="60"></div>
+        <div><label for="u-ent" data-t="company"></label><input id="u-ent" maxlength="200"></div>
       </div>
       <div style="margin-top:12px"><label for="u-des" data-t="designation"></label><input id="u-des" maxlength="500"></div>
       <div class="grid" style="margin-top:12px">
-        <div><label for="u-mt" data-t="amount"></label><input id="u-mt" inputmode="decimal"></div>
+        <div><label for="u-ht" data-t="amountHT"></label><input id="u-ht" inputmode="decimal"></div>
+        <div><label for="u-ttc" data-t="amountTTC"></label><input id="u-ttc" inputmode="decimal"></div>
         <div><label for="u-dev" data-t="currency"></label><select id="u-dev"><option>IDR</option><option>EUR</option><option>USD</option></select></div>
+        <div><label for="u-num" data-t="number"></label><input id="u-num" maxlength="60"></div>
       </div>
       <div style="margin-top:12px">
         <label data-t="file"></label>
@@ -229,6 +238,7 @@ th.num{text-align:right}
         <div style="flex:0 0 120px"><label for="e-lang">Langue</label><select id="e-lang"><option value="fr">Français</option><option value="en">English</option></select></div>
         <button class="btn" type="submit">Créer et inviter</button>
       </form>
+      <div style="margin-top:12px"><label>Chantiers autorisés</label><div id="e-chs" class="chips"></div></div>
       <p class="muted" style="margin:10px 0 0;font-size:13px">L'entreprise reçoit un mail (FR + EN) avec un lien pour choisir son mot de passe. Le lien expire au bout de 24 h : « Renvoyer l'accès » en génère un nouveau.</p>
     </div>
     <div class="tablewrap" id="tbl-e"></div>
@@ -238,7 +248,7 @@ th.num{text-align:right}
     <div class="card" style="padding:14px">
       <h2>Suivi des budgets par chantier</h2>
       <div class="tablewrap" id="tbl-bud"></div>
-      <p class="muted" style="margin:10px 0 0;font-size:13px">Payé = factures marquées payées. En attente de paiement = factures non payées et non refusées (à vérifier ou validées). Restant = budget − payé. Prévisionnel = budget − payé − en attente. Les factures refusées ne sont pas comptées.</p>
+      <p class="muted" style="margin:10px 0 0;font-size:13px">Montants TTC. Payé = factures marquées payées. En attente de paiement = factures non payées et non refusées (à vérifier ou validées). Restant = budget − payé. Prévisionnel = budget − payé − en attente. Les factures refusées ne sont pas comptées.</p>
     </div>
     <div class="card" id="bud-detail" hidden>
       <div class="row" style="align-items:flex-end">
@@ -266,8 +276,30 @@ th.num{text-align:right}
     <div class="tablewrap" id="tbl-c"></div>
   </section>
 
+  <section id="tab-acces" hidden>
+    <div class="card">
+      <h2>Administrateurs</h2>
+      <p class="muted" style="margin:0 0 12px;font-size:14px">Le super administrateur gère tout. Un valideur voit tous les chantiers, valide ou refuse les factures, marque les paiements et consulte les budgets. Il ne gère ni les entreprises, ni les chantiers, ni les paramètres.</p>
+      <form id="f-adm" class="row" autocomplete="off">
+        <div><label for="a-nom">Nom</label><input id="a-nom" maxlength="120"></div>
+        <div><label for="a-email">Email</label><input id="a-email" type="email" required></div>
+        <button class="btn" type="submit">Nommer valideur</button>
+      </form>
+      <div class="tablewrap" id="tbl-adm" style="margin-top:14px"></div>
+    </div>
+    <div class="card">
+      <h2>Accès des entreprises par chantier</h2>
+      <p class="muted" style="margin:0 0 12px;font-size:14px">Cochez les chantiers sur lesquels chaque entreprise peut déposer ses factures. Elle ne voit que ces chantiers.</p>
+      <div class="tablewrap" id="tbl-matrix"></div>
+    </div>
+    <div class="card">
+      <h2>Récapitulatif par chantier</h2>
+      <div class="tablewrap" id="tbl-recap-acces"></div>
+    </div>
+  </section>
+
   <section id="tab-params" hidden>
-    <form id="f-set" class="card" autocomplete="off">
+    <form id="f-set" class="card" autocomplete="off" data-super>
       <h2>Paramètres</h2>
       <div class="grid">
         <div><label for="s-val">Adresse(s) qui reçoivent les factures validées</label><input id="s-val" placeholder="compta@exemple.com, autre@exemple.com"></div>
